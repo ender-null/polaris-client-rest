@@ -1,7 +1,7 @@
-import winston, { createLogger, transports, format as winstonFormat } from 'winston';
-import 'winston-daily-rotate-file';
 import fs from 'fs';
 import { FileResult, fileSync } from 'tmp';
+import winston, { createLogger, transports, format as winstonFormat } from 'winston';
+import 'winston-daily-rotate-file';
 
 export const catchException = (exception: Error): Error => {
   logger.error(`Catch exception: ${exception.message}`);
@@ -38,6 +38,10 @@ export const isInt = (number: number | string): boolean => {
     return false;
   }
   return !isNaN(parseFloat(number));
+};
+
+export const now = (): number => {
+  return new Date().getTime() / 1000;
 };
 
 export const splitLargeMessage = (content: string, maxLength: number): string[] => {
