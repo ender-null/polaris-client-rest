@@ -23,7 +23,9 @@ app.get('/', (req: Request, res: Response) => {
     const content = req.query.content as string;
     const chatId = req.query.chatId as string;
     const type = (req.query.type as string) || 'text';
-    const extra = (req.query.extra as any) || {};
+    const extra = (req.query.extra as any) || {
+      format: 'Markdown'
+    };
     if (!content || !chatId) {
       res.send({
         error: 'Missing parameters',
@@ -56,7 +58,9 @@ app.get('/broadcast', (req, res) => {
     const chatId = req.query.chatId as string;
     const type = (req.query.type as string) || 'text';
     const target = (req.query.target as string) || 'all';
-    const extra = (req.query.extra as any) || {};
+    const extra = (req.query.extra as any) || {
+      format: 'Markdown'
+    };
     if (!content || !chatId) {
       res.send({
         error: 'Missing parameters',
