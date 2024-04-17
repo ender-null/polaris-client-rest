@@ -29,6 +29,7 @@ app.get('/', (req: Request, res: Response) => {
         error: 'Missing parameters',
         message: "Missing required parameters 'chatId' or 'content'",
       });
+      res.end();
       ws.close();
     }
     message(ws, chatId, content, type, extra);
@@ -36,10 +37,10 @@ app.get('/', (req: Request, res: Response) => {
 
   ws.on('message', (message) => {
     if (!responseSent) {
-      const json = JSON.stringify(message, null, 4);
-      logger.info(json);
-      ws.send(json);
-      res.send(json);
+      logger.info(JSON.stringify(message, null, 4));
+      ws.send(message);
+      res.send(message);
+      res.end();
       responseSent = true;
       ws.close();
     }
@@ -61,10 +62,12 @@ app.get('/broadcast', (req, res) => {
         error: 'Missing parameters',
         message: "Missing required parameters 'chatId' or 'content'",
       });
+      res.end();
       ws.close();
     }
-    const json = broadcast(ws, chatId, content, type, extra, target);
-    res.send(json);
+    const data = broadcast(ws, chatId, content, type, extra, target);
+    res.send(data);
+    res.end();
     ws.close();
   });
 });
@@ -93,7 +96,7 @@ const init = (ws: WebSocket) => {
   const json = JSON.stringify(data, null, 4);
   logger.info(json);
   ws.send(json);
-  return json;
+  return data;
 };
 
 const message = (ws: WebSocket, chatId: string, content?: string, type: string = 'text', extra?: Extra) => {
@@ -115,7 +118,7 @@ const message = (ws: WebSocket, chatId: string, content?: string, type: string =
   const json = JSON.stringify(data, null, 4);
   logger.info(json);
   ws.send(json);
-  return json;
+  return data;
 };
 
 const broadcast = (
@@ -141,5 +144,5 @@ const broadcast = (
   const json = JSON.stringify(data, null, 4);
   logger.info(json);
   ws.send(json);
-  return json;
+  return data;
 };
