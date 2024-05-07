@@ -198,7 +198,7 @@ export interface WSPing extends WSData {
 }
 
 export interface WSBroadcast extends WSData {
-  type: 'broadcast';
+  type: 'broadcast' | 'redirect';
   target: string | string[];
   message: BroadcastMessage;
 }

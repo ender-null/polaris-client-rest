@@ -52,6 +52,22 @@ app.get('/broadcast', (req, res) => {
   });
 });
 
+app.get('/redirect', (req, res) => {
+  const ws = new WebSocket(process.env.SERVER);
+
+  ws.on('open', () => {
+    init(ws);
+    const content = req.query.content;
+    const chatId = req.query.chatId;
+    const type = req.query.type || 'text';
+    const target = req.query.target || 'all';
+    const extra = req.query.extra || {};
+    const data = broadcast(ws, chatId, content, type, extra, target, true);
+    res.send(data);
+    ws.close();
+  });
+});
+
 app.listen(port, () => {
   logger.info(`Express server running on port ${port}`);
 });
@@ -104,11 +120,12 @@ const broadcast = (
   type: string = 'text',
   extra?: Extra,
   target: string = 'all',
+  redirect: boolean = false,
 ) => {
   const data: WSBroadcast = {
     bot: 'rest',
     platform: 'rest',
-    type: 'broadcast',
+    type: redirect ? 'redirect' : 'broadcast',
     target: target,
     message: {
       conversation: new Conversation(chatId),
