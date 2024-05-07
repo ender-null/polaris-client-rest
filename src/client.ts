@@ -24,7 +24,7 @@ app.get('/', (req: Request, res: Response) => {
     const chatId = req.query.chatId as string;
     const type = (req.query.type as string) || 'text';
     const extra = (req.query.extra as any) || {
-      format: 'Markdown'
+      format: 'Markdown',
     };
     if (!content || !chatId) {
       res.send({
@@ -59,7 +59,7 @@ app.get('/broadcast', (req, res) => {
     const type = (req.query.type as string) || 'text';
     const target = (req.query.target as string) || 'all';
     const extra = (req.query.extra as any) || {
-      format: 'Markdown'
+      format: 'Markdown',
     };
     if (!content || !chatId) {
       res.send({
@@ -81,13 +81,24 @@ app.get('/redirect', (req, res) => {
 
   ws.on('open', () => {
     init(ws);
-    const content = req.query.content;
-    const chatId = req.query.chatId;
-    const type = req.query.type || 'text';
-    const target = req.query.target || 'all';
-    const extra = req.query.extra || {};
+    const content = req.query.content as string;
+    const chatId = req.query.chatId as string;
+    const type = (req.query.type as string) || 'text';
+    const target = (req.query.target as string) || 'all';
+    const extra = (req.query.extra as any) || {
+      format: 'Markdown',
+    };
+    if (!content || !chatId) {
+      res.send({
+        error: 'Missing parameters',
+        message: "Missing required parameters 'chatId' or 'content'",
+      });
+      res.end();
+      ws.close();
+    }
     const data = broadcast(ws, chatId, content, type, extra, target, true);
     res.send(data);
+    res.end();
     ws.close();
   });
 });
