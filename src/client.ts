@@ -4,14 +4,11 @@ import WebSocket from 'ws';
 import { Conversation, Extra, WSBroadcast, WSInit, WSMessage } from './types';
 import { logger, now } from './utils';
 
-logger.debug(`SERVER: ${process.env.SERVER}`);
-logger.debug(`CONFIG: ${process.env.CONFIG}`);
-
 process.on('exit', () => {
   logger.warn(`Exit process`);
 });
 
-if (!process.env.SERVER || process.env.CONFIG) {
+if (!process.env.SERVER || !process.env.CONFIG) {
   if (!process.env.SERVER) {
     logger.warn(`Missing env variable SERVER`);
   }
