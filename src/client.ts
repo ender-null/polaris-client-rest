@@ -86,6 +86,33 @@ app.get('/broadcast', (req, res) => {
   });
 });
 
+app.get('/redirect', (req, res) => {
+  const ws = new WebSocket(process.env.SERVER);
+
+  ws.on('open', () => {
+    init(ws);
+    const content = req.query.content as string;
+    const chatId = req.query.chatId as string;
+    const type = (req.query.type as string) || 'text';
+    const target = (req.query.target as string) || 'all';
+    const extra = (req.query.extra as any) || {
+      format: 'Markdown',
+    };
+    if (!content || !chatId) {
+      res.send({
+        error: 'Missing parameters',
+        message: "Missing required parameters 'chatId' or 'content'",
+      });
+      res.end();
+      ws.close();
+    }
+    const data = broadcast(ws, chatId, content, type, extra, target, true);
+    res.send(data);
+    res.end();
+    ws.close();
+  });
+});
+
 app.listen(port, () => {
   logger.info(`Polaris REST client running on port ${port}`);
 });
@@ -142,11 +169,12 @@ const broadcast = (
   type: string = 'text',
   extra?: Extra,
   target: string = 'all',
+  redirect: boolean = false,
 ) => {
   const data: WSBroadcast = {
     bot: 'rest',
     platform: 'rest',
-    type: 'broadcast',
+    type: redirect ? 'redirect' : 'broadcast',
     target: target,
     message: {
       conversation: new Conversation(chatId),
