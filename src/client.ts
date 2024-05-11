@@ -11,6 +11,16 @@ process.on('exit', () => {
   logger.warn(`Exit process`);
 });
 
+if (!process.env.SERVER || process.env.CONFIG) {
+  if (!process.env.SERVER) {
+    logger.warn(`Missing env variable SERVER`);
+  }
+  if (!process.env.CONFIG) {
+    logger.warn(`Missing env variable CONFIG`);
+  }
+  process.exit();
+}
+
 const app: Express = express();
 const port = 3000;
 
@@ -24,7 +34,7 @@ app.get('/', (req: Request, res: Response) => {
     const chatId = req.query.chatId as string;
     const type = (req.query.type as string) || 'text';
     const extra = (req.query.extra as any) || {
-      format: 'Markdown'
+      format: 'Markdown',
     };
     if (!content || !chatId) {
       res.send({
@@ -59,7 +69,7 @@ app.get('/broadcast', (req, res) => {
     const type = (req.query.type as string) || 'text';
     const target = (req.query.target as string) || 'all';
     const extra = (req.query.extra as any) || {
-      format: 'Markdown'
+      format: 'Markdown',
     };
     if (!content || !chatId) {
       res.send({
