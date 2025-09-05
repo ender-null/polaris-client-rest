@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import express, { Express, Request, Response } from 'express';
 import WebSocket from 'ws';
 import { Conversation, Extra, WSBroadcast, WSInit, WSMessage } from './types';
