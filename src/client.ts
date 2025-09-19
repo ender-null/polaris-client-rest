@@ -20,7 +20,37 @@ if (!process.env.SERVER || !process.env.CONFIG) {
 const app: Express = express();
 const port = 3000;
 
-app.get('/', (req: Request, res: Response) => {
+app.get('/', (req, res) => {
+  const ws = new WebSocket(process.env.SERVER);
+
+  ws.on('open', () => {
+    init(ws);
+    const content = req.query.content as string;
+    const chatId = req.query.chatId as string || process.env.DEFAULT_CHAT_ID;
+    const type = (req.query.type as string) || 'text';
+    const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
+    const extra = (req.query.extra as any) || {
+      format: 'Markdown',
+    };
+    if(req.query.silent === true || req.query.silent === 'true') {
+      extra.silent = true;
+    }
+    if (!content) {
+      res.send({
+        error: 'Missing parameters',
+        message: "Missing required parameter 'content'",
+      });
+      res.end();
+      ws.close();
+    }
+    const data = broadcast(ws, chatId, content, type, extra, target);
+    res.send(data);
+    res.end();
+    ws.close();
+  });
+});
+
+app.get('/message', (req: Request, res: Response) => {
   const ws = new WebSocket(process.env.SERVER);
   let responseSent = false;
 
@@ -117,7 +147,7 @@ const user = {
   id: 'rest',
   firstName: 'rest',
   lastName: null,
-  username: 'restful',
+  username: 'rest',
   isBot: true,
 };
 

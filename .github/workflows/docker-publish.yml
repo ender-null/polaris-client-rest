@@ -151,6 +151,8 @@ jobs:
           FINGERPRINT: op://end.works/SSH Key/fingerprint
           SERVER: op://end.works/Peto-tan Config/server
           CONFIG: op://end.works/Peto-tan Config/config telegram
+          DEFAULT_TARGET: op://end.works/Polaris Config/default target
+          DEFAULT_CHAT_ID: op://end.works/Polaris Config/default chat id
 
       - name: Run container on host
         uses: appleboy/ssh-action@v1.0.3
