@@ -26,13 +26,13 @@ app.get('/', (req, res) => {
   ws.on('open', () => {
     init(ws);
     const content = req.query.content as string;
-    const chatId = req.query.chatId as string || process.env.DEFAULT_CHAT_ID;
+    const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
     const type = (req.query.type as string) || 'text';
     const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
     const extra = (req.query.extra as any) || {
       format: 'Markdown',
     };
-    if(req.query.silent === true || req.query.silent === 'true') {
+    if (req.query.silent === 'true') {
       extra.silent = true;
     }
     if (!content) {
