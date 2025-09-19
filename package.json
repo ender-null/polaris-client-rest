@@ -46,12 +46,12 @@
     "ws": "^8.18.3"
   },
   "devDependencies": {
-    "@types/node": "^24.3.1",
+    "@types/node": "^24.5.2",
     "@types/tmp": "^0.2.6",
     "@types/ws": "^8.18.1",
-    "@typescript-eslint/eslint-plugin": "^8.42.0",
-    "@typescript-eslint/parser": "^8.42.0",
-    "eslint": "^9.35.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
+    "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-config-standard": "^17.1.0",
     "eslint-config-standard-with-typescript": "^43.0.1",
@@ -62,9 +62,9 @@
     "eslint-plugin-promise": "^7.2.1",
     "husky": "^9.1.7",
     "prettier": "^3.6.2",
-    "typedoc": "^0.28.12",
+    "typedoc": "^0.28.13",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.42.0"
+    "typescript-eslint": "^8.44.0"
   },
   "keywords": [
     "polaris",
