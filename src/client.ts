@@ -57,7 +57,7 @@ app.get('/message', (req: Request, res: Response) => {
   ws.on('open', () => {
     init(ws);
     const content = req.query.content as string;
-    const chatId = req.query.chatId as string;
+    const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
     const type = (req.query.type as string) || 'text';
     const extra = (req.query.extra as any) || {
       format: 'Markdown',
@@ -91,9 +91,9 @@ app.get('/broadcast', (req, res) => {
   ws.on('open', () => {
     init(ws);
     const content = req.query.content as string;
-    const chatId = req.query.chatId as string;
+    const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
     const type = (req.query.type as string) || 'text';
-    const target = (req.query.target as string) || 'all';
+    const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
     const extra = (req.query.extra as any) || {
       format: 'Markdown',
     };
@@ -118,9 +118,9 @@ app.get('/redirect', (req, res) => {
   ws.on('open', () => {
     init(ws);
     const content = req.query.content as string;
-    const chatId = req.query.chatId as string;
+    const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
     const type = (req.query.type as string) || 'text';
-    const target = (req.query.target as string) || 'all';
+    const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
     const extra = (req.query.extra as any) || {
       format: 'Markdown',
     };
