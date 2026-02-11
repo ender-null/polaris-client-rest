@@ -17,11 +17,13 @@ if (!process.env.SERVER || !process.env.CONFIG) {
   process.exit();
 }
 
+const serverUrl = process.env.SERVER;
 const app: Express = express();
 const port = 3000;
 
 app.get('/', (req, res) => {
-  const ws = new WebSocket(process.env.SERVER);
+  const userId = 'rest';
+  const ws = new WebSocket(`${serverUrl}?platform=rest&accountId=${userId}`);
 
   ws.on('open', () => {
     init(ws);
