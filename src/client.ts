@@ -1,6 +1,6 @@
 import express, { Express, Request, Response } from 'express';
 import WebSocket from 'ws';
-import { Conversation, Extra, WSBroadcast, WSInit, WSMessage } from './types';
+import { Conversation, Extra, WSBroadcast, WSInit, WSMessage, WSPing } from './types';
 import { logger, now } from './utils';
 
 process.on('exit', () => {
@@ -21,125 +21,194 @@ const serverUrl = process.env.SERVER;
 const app: Express = express();
 const port = 3000;
 
-app.get('/', (req, res) => {
-  const userId = 'rest';
-  const ws = new WebSocket(`${serverUrl}?platform=rest&accountId=${userId}`);
+const PING_INTERVAL_MS = 30000;
 
-  ws.on('open', () => {
-    init(ws);
-    const content = req.query.content as string;
-    const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
-    const type = (req.query.type as string) || 'text';
-    const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
-    const extra = (req.query.extra as any) || {
-      format: 'Markdown',
-    };
-    if (req.query.silent === 'true') {
-      extra.silent = true;
+let ws: WebSocket | null = null;
+let pingInterval: ReturnType<typeof setInterval> | null = null;
+const messageRequestQueue: Array<{ resolve: (value: unknown) => void }> = [];
+
+const connect = (): WebSocket => {
+  const socket = new WebSocket(`${serverUrl}?platform=rest&accountId=rest`);
+  return socket;
+};
+
+const initSocket = (socket: WebSocket): void => {
+  init(socket);
+  if (pingInterval) clearInterval(pingInterval);
+  pingInterval = setInterval(() => {
+    if (socket.readyState === WebSocket.OPEN) {
+      const ping: WSPing = { bot: 'rest', platform: 'rest', type: 'ping' };
+      socket.send(JSON.stringify(ping));
     }
-    if (!content) {
-      res.send({
-        error: 'Missing parameters',
-        message: "Missing required parameter 'content'",
-      });
-      res.end();
-      ws.close();
-    }
-    const data = broadcast(ws, chatId, content, type, extra, target);
-    res.send(data);
-    res.end();
-    ws.close();
+  }, PING_INTERVAL_MS);
+};
+
+const startWebSocket = (): void => {
+  const socket = connect();
+
+  socket.on('open', () => {
+    logger.info('WebSocket connected');
+    initSocket(socket);
   });
+
+  socket.on('message', (data: WebSocket.Data) => {
+    if (messageRequestQueue.length > 0) {
+      const { resolve } = messageRequestQueue.shift()!;
+      resolve(data);
+    }
+  });
+
+  socket.on('close', () => {
+    logger.warn('WebSocket closed');
+    pingInterval && clearInterval(pingInterval);
+    pingInterval = null;
+    ws = null;
+    setTimeout(startWebSocket, 5000);
+  });
+
+  socket.on('error', (err) => {
+    logger.error('WebSocket error', err);
+  });
+
+  ws = socket;
+};
+
+const getReadyWs = async (): Promise<WebSocket> => {
+  for (let i = 0; i < 60; i++) {
+    if (ws && ws.readyState === WebSocket.OPEN) return ws;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error('WebSocket not ready');
+};
+
+app.get('/', (req, res) => {
+  void (async () => {
+    try {
+      const socket = await getReadyWs();
+      const content = req.query.content as string;
+      const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
+      const type = (req.query.type as string) || 'text';
+      const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
+      const extra = (req.query.extra as any) || {
+        format: 'Markdown',
+      };
+      if (req.query.silent === 'true') {
+        extra.silent = true;
+      }
+      if (!content) {
+        res.send({
+          error: 'Missing parameters',
+          message: "Missing required parameter 'content'",
+        });
+        res.end();
+        return;
+      }
+      const data = broadcast(socket, chatId, content, type, extra, target);
+      res.send(data);
+      res.end();
+    } catch (err) {
+      res.status(503).send({ error: 'WebSocket unavailable' });
+      res.end();
+    }
+  })();
 });
 
 app.get('/message', (req: Request, res: Response) => {
-  const ws = new WebSocket(process.env.SERVER);
-  let responseSent = false;
+  void (async () => {
+    try {
+      const content = req.query.content as string;
+      const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
+      const type = (req.query.type as string) || 'text';
+      const extra = (req.query.extra as any) || {
+        format: 'Markdown',
+      };
+      if (!content || !chatId) {
+        res.send({
+          error: 'Missing parameters',
+          message: "Missing required parameters 'chatId' or 'content'",
+        });
+        res.end();
+        return;
+      }
 
-  ws.on('open', () => {
-    init(ws);
-    const content = req.query.content as string;
-    const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
-    const type = (req.query.type as string) || 'text';
-    const extra = (req.query.extra as any) || {
-      format: 'Markdown',
-    };
-    if (!content || !chatId) {
-      res.send({
-        error: 'Missing parameters',
-        message: "Missing required parameters 'chatId' or 'content'",
+      const socket = await getReadyWs();
+      const responsePromise = new Promise((resolve) => {
+        messageRequestQueue.push({ resolve });
       });
-      res.end();
-      ws.close();
-    }
-    message(ws, chatId, content, type, extra);
-  });
+      message(socket, chatId, content, type, extra);
 
-  ws.on('message', (message) => {
-    if (!responseSent) {
-      logger.info(JSON.stringify(message, null, 4));
-      ws.send(message);
-      res.send(message);
+      const wsMessage = await responsePromise;
+      logger.info(JSON.stringify(wsMessage, null, 4));
+      res.send(wsMessage);
       res.end();
-      responseSent = true;
-      ws.close();
+    } catch (err) {
+      res.status(503).send({ error: 'WebSocket unavailable' });
+      res.end();
     }
-  });
+  })();
 });
 
 app.get('/broadcast', (req, res) => {
-  const ws = new WebSocket(process.env.SERVER);
+  void (async () => {
+    try {
+      const content = req.query.content as string;
+      const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
+      const type = (req.query.type as string) || 'text';
+      const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
+      const extra = (req.query.extra as any) || {
+        format: 'Markdown',
+      };
+      if (!content || !chatId) {
+        res.send({
+          error: 'Missing parameters',
+          message: "Missing required parameters 'chatId' or 'content'",
+        });
+        res.end();
+        return;
+      }
 
-  ws.on('open', () => {
-    init(ws);
-    const content = req.query.content as string;
-    const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
-    const type = (req.query.type as string) || 'text';
-    const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
-    const extra = (req.query.extra as any) || {
-      format: 'Markdown',
-    };
-    if (!content || !chatId) {
-      res.send({
-        error: 'Missing parameters',
-        message: "Missing required parameters 'chatId' or 'content'",
-      });
+      const socket = await getReadyWs();
+      const data = broadcast(socket, chatId, content, type, extra, target);
+      res.send(data);
       res.end();
-      ws.close();
+    } catch (err) {
+      res.status(503).send({ error: 'WebSocket unavailable' });
+      res.end();
     }
-    const data = broadcast(ws, chatId, content, type, extra, target);
-    res.send(data);
-    res.end();
-    ws.close();
-  });
+  })();
 });
 
 app.get('/redirect', (req, res) => {
-  const ws = new WebSocket(process.env.SERVER);
+  void (async () => {
+    try {
+      const content = req.query.content as string;
+      const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
+      const type = (req.query.type as string) || 'text';
+      const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
+      const extra = (req.query.extra as any) || {
+        format: 'Markdown',
+      };
+      if (!content || !chatId) {
+        res.send({
+          error: 'Missing parameters',
+          message: "Missing required parameters 'chatId' or 'content'",
+        });
+        res.end();
+        return;
+      }
 
-  ws.on('open', () => {
-    init(ws);
-    const content = req.query.content as string;
-    const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
-    const type = (req.query.type as string) || 'text';
-    const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
-    const extra = (req.query.extra as any) || {
-      format: 'Markdown',
-    };
-    if (!content || !chatId) {
-      res.send({
-        error: 'Missing parameters',
-        message: "Missing required parameters 'chatId' or 'content'",
-      });
+      const socket = await getReadyWs();
+      const data = broadcast(socket, chatId, content, type, extra, target, true);
+      res.send(data);
       res.end();
-      ws.close();
+    } catch (err) {
+      res.status(503).send({ error: 'WebSocket unavailable' });
+      res.end();
     }
-    const data = broadcast(ws, chatId, content, type, extra, target, true);
-    res.send(data);
-    res.end();
-    ws.close();
-  });
+  })();
 });
+
+startWebSocket();
 
 app.listen(port, () => {
   logger.info(`Polaris REST client running on port ${port}`);
