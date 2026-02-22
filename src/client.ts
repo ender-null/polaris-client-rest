@@ -1,6 +1,6 @@
 import express, { Express, Request, Response } from 'express';
 import WebSocket from 'ws';
-import { Conversation, Extra, WSBroadcast, WSInit, WSMessage, WSPing } from './types';
+import { Conversation, Extra, WSBroadcast, WSInit, WSMessage, WSNotify, WSPing } from './types';
 import { logger, now } from './utils';
 
 process.on('exit', () => {
@@ -28,7 +28,7 @@ let pingInterval: ReturnType<typeof setInterval> | null = null;
 const messageRequestQueue: Array<{ resolve: (value: unknown) => void }> = [];
 
 const connect = (): WebSocket => {
-  const socket = new WebSocket(`${serverUrl}?platform=rest&accountId=rest`);
+  const socket = new WebSocket(`${serverUrl}?platform=api`);
   return socket;
 };
 
@@ -37,7 +37,7 @@ const initSocket = (socket: WebSocket): void => {
   if (pingInterval) clearInterval(pingInterval);
   pingInterval = setInterval(() => {
     if (socket.readyState === WebSocket.OPEN) {
-      const ping: WSPing = { bot: 'rest', platform: 'rest', type: 'ping' };
+      const ping: WSPing = { bot: 'api', platform: 'api', type: 'ping' };
       socket.send(JSON.stringify(ping));
     }
   }, PING_INTERVAL_MS);
@@ -108,6 +108,52 @@ app.get('/', (req, res) => {
       res.end();
     } catch (err) {
       res.status(503).send({ error: 'WebSocket unavailable' });
+      res.end();
+    }
+  })();
+});
+
+app.get('/notify', (req, res) => {
+  void (async () => {
+    try {
+      const socket = await getReadyWs();
+      const content = req.query.content as string;
+      const userId = (req.query.userId as string) ?? process.env.DEFAULT_USER_ID;
+      const personality = (req.query.personality as string) ?? process.env.DEFAULT_PERSONALITY ?? 'polaris';
+      const type = (req.query.type as string) ?? 'text';
+      const extra = (req.query.extra as any) ?? {
+        format: 'Markdown',
+      };
+      if (req.query.silent === 'true') {
+        extra.silent = true;
+      }
+      if (!userId) {
+        res.send({
+          error: 'Missing parameters',
+          message: "Missing required parameter 'userId'",
+        });
+        res.end();
+        return;
+      } else if (!personality) {
+        res.send({
+          error: 'Missing parameters',
+          message: "Missing required parameter 'personality'",
+        });
+        res.end();
+        return;
+      } else if (!content) {
+        res.send({
+          error: 'Missing parameters',
+          message: "Missing required parameter 'content'",
+        });
+        res.end();
+        return;
+      }
+      notify(socket, userId, personality, content, type, extra);
+      res.send({ success: true });
+      res.end();
+    } catch (err) {
+      res.status(503).send({ error: 'WebSocket unavailable', message: err.message });
       res.end();
     }
   })();
@@ -211,14 +257,14 @@ app.get('/redirect', (req, res) => {
 startWebSocket();
 
 app.listen(port, () => {
-  logger.info(`Polaris REST client running on port ${port}`);
+  logger.info(`Polaris API client running on port ${port}`);
 });
 
 const user = {
-  id: 'rest',
-  firstName: 'rest',
+  id: 'api',
+  firstName: 'api',
   lastName: null,
-  username: 'rest',
+  username: 'api',
   isBot: true,
 };
 
@@ -226,7 +272,7 @@ const init = (ws: WebSocket) => {
   const config = JSON.parse(process.env.CONFIG);
   const data: WSInit = {
     bot: user.username,
-    platform: 'rest',
+    platform: 'api',
     type: 'init',
     user: user,
     config: config,
@@ -240,7 +286,7 @@ const init = (ws: WebSocket) => {
 const message = (ws: WebSocket, chatId: string, content?: string, type: string = 'text', extra?: Extra) => {
   const data: WSMessage = {
     bot: user.username,
-    platform: 'rest',
+    platform: 'api',
     type: 'message',
     message: {
       id: 0,
@@ -269,12 +315,38 @@ const broadcast = (
   redirect: boolean = false,
 ) => {
   const data: WSBroadcast = {
-    bot: 'rest',
-    platform: 'rest',
+    bot: 'api',
+    platform: 'api',
     type: redirect ? 'redirect' : 'broadcast',
     target: target,
     message: {
       conversation: new Conversation(chatId),
+      content,
+      type,
+      extra,
+    },
+  };
+  const json = JSON.stringify(data, null, 4);
+  logger.info(json);
+  ws.send(json);
+  return data;
+};
+
+const notify = (
+  ws: WebSocket,
+  userId: string,
+  personality: string,
+  content?: string,
+  type: string = 'text',
+  extra?: Extra,
+) => {
+  const data: WSNotify = {
+    bot: 'api',
+    platform: 'api',
+    type: 'notify',
+    personality,
+    userId,
+    message: {
       content,
       type,
       extra,

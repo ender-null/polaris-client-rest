@@ -176,6 +176,18 @@ export class BroadcastMessage {
   }
 }
 
+export class NotifyMessage {
+  content: string;
+  type: string;
+  extra: Extra;
+
+  constructor(content: string, type?: string, extra?: Extra) {
+    this.content = content;
+    this.type = type;
+    this.extra = extra;
+  }
+}
+
 export interface WSData {
   bot: string;
   platform: string;
@@ -201,6 +213,13 @@ export interface WSBroadcast extends WSData {
   type: 'broadcast' | 'redirect';
   target: string | string[];
   message: BroadcastMessage;
+}
+
+export interface WSNotify extends WSData {
+  type: 'notify';
+  userId: string;
+  personality: string;
+  message: NotifyMessage;
 }
 
 export interface WSCommandPayload {
