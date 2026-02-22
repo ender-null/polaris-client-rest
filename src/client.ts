@@ -63,7 +63,7 @@ const startWebSocket = (): void => {
     pingInterval && clearInterval(pingInterval);
     pingInterval = null;
     ws = null;
-    setTimeout(startWebSocket, 5000);
+    setTimeout(startWebSocket, 3000);
   });
 
   socket.on('error', (err) => {
@@ -82,38 +82,6 @@ const getReadyWs = async (): Promise<WebSocket> => {
 };
 
 app.get('/', (req, res) => {
-  void (async () => {
-    try {
-      const socket = await getReadyWs();
-      const content = req.query.content as string;
-      const chatId = (req.query.chatId as string) || process.env.DEFAULT_CHAT_ID;
-      const type = (req.query.type as string) || 'text';
-      const target = (req.query.target as string) || process.env.DEFAULT_TARGET || 'all';
-      const extra = (req.query.extra as any) || {
-        format: 'Markdown',
-      };
-      if (req.query.silent === 'true') {
-        extra.silent = true;
-      }
-      if (!content) {
-        res.send({
-          error: 'Missing parameters',
-          message: "Missing required parameter 'content'",
-        });
-        res.end();
-        return;
-      }
-      const data = broadcast(socket, chatId, content, type, extra, target);
-      res.send(data);
-      res.end();
-    } catch (err) {
-      res.status(503).send({ error: 'WebSocket unavailable' });
-      res.end();
-    }
-  })();
-});
-
-app.get('/notify', (req, res) => {
   void (async () => {
     try {
       const socket = await getReadyWs();
