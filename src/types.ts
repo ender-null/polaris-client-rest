@@ -219,6 +219,7 @@ export interface WSNotify extends WSData {
   type: 'notify';
   userId: string;
   personality: string;
+  handleMessage?: boolean;
   message: NotifyMessage;
 }
 

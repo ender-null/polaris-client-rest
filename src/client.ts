@@ -89,6 +89,7 @@ app.get('/', (req, res) => {
       const userId = (req.query.userId as string) ?? process.env.DEFAULT_USER_ID;
       const personality = (req.query.personality as string) ?? process.env.DEFAULT_PERSONALITY ?? 'polaris';
       const type = (req.query.type as string) ?? 'text';
+      const handleMessage = ((req.query.handle as string) ?? 'false') === 'true';
       const extra = (req.query.extra as any) ?? {
         format: 'Markdown',
       };
@@ -117,7 +118,7 @@ app.get('/', (req, res) => {
         res.end();
         return;
       }
-      notify(socket, userId, personality, content, type, extra);
+      notify(socket, userId, personality, content, type, extra, handleMessage);
       res.send({ success: true });
       res.end();
     } catch (err) {
@@ -307,6 +308,7 @@ const notify = (
   content?: string,
   type: string = 'text',
   extra?: Extra,
+  handleMessage: boolean = false,
 ) => {
   const data: WSNotify = {
     bot: 'api',
@@ -314,6 +316,7 @@ const notify = (
     type: 'notify',
     personality,
     userId,
+    handleMessage,
     message: {
       content,
       type,
