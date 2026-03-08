@@ -28,7 +28,12 @@ let pingInterval: ReturnType<typeof setInterval> | null = null;
 const messageRequestQueue: Array<{ resolve: (value: unknown) => void }> = [];
 
 const connect = (): WebSocket => {
-  const socket = new WebSocket(`${serverUrl}?platform=api`);
+  const socket = new WebSocket(`${serverUrl}?platform=api`, {
+    headers: {
+      'CF-Access-Client-Id': process.env.CF_ACCESS_CLIENT_ID,
+      'CF-Access-Client-Secret': process.env.CF_ACCESS_CLIENT_SECRET,
+    },
+  });
   return socket;
 };
 
